@@ -1,0 +1,22 @@
+{
+  "name": "Фото → 4:3",
+  "short_name": "Фото4x3",
+  "description": "Преобразование фотографий в формат 4:3 с добавлением полей",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#222222",
+  "theme_color": "#222222",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
