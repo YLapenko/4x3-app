@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <link rel="manifest" href="manifest.json">
+<script>
+(async () => {
+  if ('serviceWorker' in navigator) {
+    // Проверяем, открыт ли файл локально
+    const isLocal = location.protocol === 'file:';
+    const swUrl = isLocal ? URL.createObjectURL(new Blob([`
+      self.addEventListener('install', e => self.skipWaiting());
+      self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
+      self.addEventListener('fetch', e => e.respondWith(fetch(e.request).catch(() => new Response('<h1>Offline</h1>', {headers:{'Content-Type':'text/html'}}))));
+    `], {type: 'application/javascript'})) : 'service-worker.js';
+
+    try {
+      await navigator.serviceWorker.register(swUrl);
+      console.log('Service Worker зарегистрирован');
+    } catch (err) {
+      console.warn('SW error:', err);
+    }
+  }
+})();
+</script>
+  <title>Фото → 4:3 (PWA)</title>
+  <style>
+    :root{--bg:#222;--accent:#06f;--ok:#0c0;}
+    body{margin:0;background:var(--bg);color:#fff;font-family:Inter,system-ui,sans-serif;display:flex;flex-direction:column;height:100%}
+    header{padding:14px 16px;background:rgba(255,255,255,0.05);font-weight:600}
+    main{flex:1;display:flex;gap:12px;padding:12px}
+    .sidebar{width:280px;min-width:220px;background:rgba(255,255,255,0.05);padding:12px;border-radius:12px}
+    label{display:block;margin:8px 0}
+    input,select,button{width:100%;padding:8px;margin-top:4px;border-radius:8px;border:none}
+    canvas{background:#111;border-radius:10px;max-width:100%;box-shadow:0 6px 24px rgba(0,0,0,0.6)}
+    .canvas-wrap{flex:1;display:flex;align-items:center;justify-content:center;position:relative}
+    #indicator{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;border-radius:10px;display:none}
+    button{background:var(--accent);color:#fff;font-weight:600;cursor:pointer;transition:background .3s,transform .2s}
+    button:disabled{opacity:.6;cursor:not-allowed}
+    button.loading{background:#555;cursor:wait;position:relative;color:transparent}
+    button.loading::after{content:'';position:absolute;top:50%;left:50%;width:16px;height:16px;margin:-8px; border:3px solid #fff; border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite}
+    button.done{background:var(--ok)!important;color:#fff!important}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+  <header>Фото → 4:3</header>
+  <main>
+    <div class="sidebar">
+      <label>Загрузить фото<input id="file" type="file" accept="image/*"></label>
+      <label>Направление добавления полей
+        <select id="paddingDir">
+          <option value="auto">Авто</option>
+          <option value="vertical">По вертикали</option>
+          <option value="horizontal">По горизонтали</option>
+        </select>
+      </label>
+      <label>Фон
+        <select id="bgMode">
+          <option value="color">Цвет</option>
+          <option value="blur">Размытие</option>
+        </select>
+      </label>
+      <label>Цвет фона<input id="bgColor" type="color" value="#ffffff"></label>
+      <label>Макс. размер (px)<input id="maxSize" type="number" min="200" max="8000" value="2000"></label>
+      <button id="render">Сделать 4:3</button>
+      <button id="download" disabled>Скачать</button>
+      <small id="hint"></small>
+    </div>
+    <div class="canvas-wrap">
+      <canvas id="outCanvas" width="800" height="600"></canvas>
+      <div id="indicator"></div>
+    </div>
+  </main>
+
+<script>
+const fileInput=document.getElementById('file');
+const renderBtn=document.getElementById('render');
+const downloadBtn=document.getElementById('download');
+const outCanvas=document.getElementById('outCanvas');
+const ctx=outCanvas.getContext('2d');
+const indicator=document.getElementById('indicator');
+const hint=document.getElementById('hint');
+let img=new Image(),imgLoaded=false;
+
+fileInput.addEventListener('change',e=>{
+  const f=e.target.files[0];
+  if(!f)return;
+  const url=URL.createObjectURL(f);
+  img=new Image();
+  img.onload=()=>{imgLoaded=true;URL.revokeObjectURL(url);drawPreview();};
+  img.src=url;
+});
+
+document.getElementById('paddingDir').addEventListener('change',updateIndicator);
+
+function updateIndicator(){
+  const dir=document.getElementById('paddingDir').value;
+  indicator.style.display='block';
+  indicator.style.boxShadow='none';
+  if(dir==='vertical'){
+    indicator.style.boxShadow='inset 0 80px 0 rgba(255,255,255,0.3), inset 0 -80px 0 rgba(255,255,255,0.3)';
+    hint.textContent='Поля сверху и снизу';
+  } else if(dir==='horizontal'){
+    indicator.style.boxShadow='inset 80px 0 0 rgba(255,255,255,0.3), inset -80px 0 0 rgba(255,255,255,0.3)';
+    hint.textContent='Поля по бокам';
+  } else {
+    indicator.style.display='none';
+    hint.textContent='Авто режим';
+  }
+}
+
+function drawPreview(){
+  const max=parseInt(document.getElementById('maxSize').value,10)||2000;
+  outCanvas.width=max;
+  outCanvas.height=Math.round(max*3/4);
+  ctx.fillStyle='#111';ctx.fillRect(0,0,outCanvas.width,outCanvas.height);
+  if(imgLoaded)ctx.drawImage(img,0,0,outCanvas.width,outCanvas.height);
+  updateIndicator();
+}
+
+async function animateButton(btn,action){
+  btn.classList.add('loading');
+  btn.disabled=true;
+  await action();
+  btn.classList.remove('loading');
+  btn.classList.add('done');
+  setTimeout(()=>{btn.classList.remove('done');btn.disabled=false;},1000);
+}
+
+renderBtn.addEventListener('click',()=>animateButton(renderBtn,async()=>{renderFinal();}));
+downloadBtn.addEventListener('click',()=>animateButton(downloadBtn,async()=>{await downloadImage();}));
+
+function renderFinal(){
+  if(!imgLoaded)return alert('Сначала загрузите фото.');
+  const mode=document.getElementById('bgMode').value;
+  const color=document.getElementById('bgColor').value;
+  const paddingDir=document.getElementById('paddingDir').value;
+  const max=parseInt(document.getElementById('maxSize').value,10)||2000;
+
+  const imgRatio=img.width/img.height,targetRatio=4/3;
+  let targetW,targetH;
+  if(paddingDir==='vertical'){targetW=img.width;targetH=Math.round(img.width/targetRatio);}
+  else if(paddingDir==='horizontal'){targetH=img.height;targetW=Math.round(img.height*targetRatio);}
+  else if(imgRatio>targetRatio){targetH=Math.round(img.width/targetRatio);targetW=img.width;}
+  else{targetW=Math.round(img.height*targetRatio);targetH=img.height;}
+
+  const scale=max/Math.max(targetW,targetH);
+  targetW=Math.round(targetW*scale);targetH=Math.round(targetH*scale);
+  outCanvas.width=targetW;outCanvas.height=targetH;
+
+  if(mode==='color'){ctx.fillStyle=color;ctx.fillRect(0,0,targetW,targetH);}
+  else{const blurPx=Math.max(12,Math.round(Math.min(targetW,targetH)/150));ctx.save();ctx.filter=`blur(${blurPx}px) brightness(0.9)`;ctx.drawImage(img,0,0,targetW,targetH);ctx.restore();}
+  const drawW=Math.round(scale*img.width),drawH=Math.round(scale*img.height);
+  const dx=Math.round((targetW-drawW)/2),dy=Math.round((targetH-drawH)/2);
+  ctx.drawImage(img,dx,dy,drawW,drawH);
+  downloadBtn.disabled=false;
+  updateIndicator();
+}
+
+function downloadImage(){
+  return new Promise(resolve=>{
+    outCanvas.toBlob(blob=>{
+      const a=document.createElement('a');
+      const url=URL.createObjectURL(blob);
+      a.href=url;a.download='photo_4x3.jpg';a.click();
+      setTimeout(()=>{URL.revokeObjectURL(url);resolve();},500);
+    },'image/jpeg',0.92);
+  });
+}
+</script>
+</body>
+</html>
