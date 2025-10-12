@@ -2,7 +2,7 @@
   "name": "Фото → 4:3",
   "short_name": "Фото4x3",
   "description": "Преобразование фотографий в формат 4:3 с добавлением полей",
-  "start_url": "/",
+  "start_url": "/4x3-app/",
   "display": "standalone",
   "background_color": "#222222",
   "theme_color": "#222222",
