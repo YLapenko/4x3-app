@@ -1,7 +1,7 @@
 EN 
 -----
-It’s a tiny, intuitive program for adding borders to photos before posting them on Instagram.
+A compact PWA for adding borders to photos before posting to Instagram.
 
 RU
 ----
-Это крошечная, интуитивно понятная программа для добавления полей к фотографиям для дальнейшей публикации фотографий в инстаграм. 
+Это небольшое PWA-приложение для добавления рамок к фото перед публикацией в Instagram.
